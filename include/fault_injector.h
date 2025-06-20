@@ -5,6 +5,8 @@
 #include <memory>
 #include <functional>
 #include <chrono>
+#include <thread>
+#include <atomic>
 
 namespace hwstress {
 
@@ -39,8 +41,10 @@ struct FaultConfig {
 struct FaultResult {
     FaultType type;
     std::string target;
+    FaultSeverity severity;
     bool success;
     std::string errorMessage;
+    std::chrono::system_clock::time_point injectionTime;
     std::chrono::system_clock::time_point timestamp;
     std::chrono::milliseconds duration;
 };
@@ -77,6 +81,7 @@ private:
     bool injectSystemCallFailure(const std::string& target, FaultSeverity severity);
     
     void autoRecoverFault(const FaultResult& fault);
+    void faultLoop();
     
     std::vector<FaultConfig> pendingFaults_;
     std::vector<FaultResult> faultHistory_;
@@ -87,6 +92,18 @@ private:
     
     std::function<void(const FaultResult&)> faultInjectedCallback_;
     std::function<void(const FaultResult&)> faultRecoveredCallback_;
+    
+    // Thread management
+    std::thread faultThread_;
+    std::atomic<bool> running_{false};
+    
+    // Fault-specific resources
+    std::vector<std::vector<uint8_t>> corruptedMemory_;
+    std::vector<std::thread> cpuOverloadThreads_;
+    std::vector<std::string> faultTestFiles_;
+    std::vector<std::unique_ptr<std::thread>> networkFaults_;
+    std::vector<std::thread> timingAnomalyThreads_;
+    std::vector<std::unique_ptr<std::thread>> systemCallFaults_;
 };
 
 } // namespace hwstress 

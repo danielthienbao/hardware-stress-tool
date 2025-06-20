@@ -8,6 +8,11 @@
 #include <chrono>
 #include <mutex>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <pdh.h>
+#endif
+
 namespace hwstress {
 
 struct SystemMetrics {
@@ -70,6 +75,8 @@ private:
     // Platform-specific data
     #ifdef _WIN32
     // Windows-specific members
+    PDH_HQUERY cpuQuery_ = nullptr;
+    PDH_HCOUNTER cpuCounter_ = nullptr;
     #else
     // Linux-specific members
     #endif

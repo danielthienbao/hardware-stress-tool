@@ -54,6 +54,12 @@ void initializeComponents() {
     stressTester = std::make_unique<StressTester>();
     stressTester->setSystemMonitor(systemMonitor);
     
+    // Add concrete stress tests
+    stressTester->addTest(std::make_unique<CpuStressTest>());
+    stressTester->addTest(std::make_unique<MemoryStressTest>());
+    stressTester->addTest(std::make_unique<DiskStressTest>());
+    stressTester->addTest(std::make_unique<GpuStressTest>());
+    
     // Initialize fault injector
     faultInjector = std::make_unique<FaultInjector>();
     
@@ -70,6 +76,63 @@ void runSystemMonitoring() {
     
     systemMonitor->stopMonitoring();
     LOGGER.info("System monitoring stopped");
+}
+
+void runStressTests(bool runCpuTest, bool runMemoryTest, bool runGpuTest, bool runDiskTest, 
+                   std::chrono::milliseconds duration, int intensity) {
+    LOGGER.info("Starting stress tests...");
+    LOGGER.info("Duration: " + std::to_string(duration.count()) + "ms");
+    LOGGER.info("Intensity: " + std::to_string(intensity));
+    
+    // Set global configuration
+    stressTester->setGlobalDuration(duration);
+    stressTester->setGlobalIntensity(intensity);
+    
+    // Set up callbacks for test progress
+    stressTester->setTestStartCallback([](const std::string& testName) {
+        LOGGER.info("Starting test: " + testName);
+    });
+    
+    stressTester->setTestCompleteCallback([](const TestResult& result) {
+        LOGGER.info("Test completed: " + result.name + " (Status: " + 
+                   std::to_string(static_cast<int>(result.status)) + ")");
+    });
+    
+    // Start system monitoring
+    systemMonitor->startMonitoring();
+    
+    // Run specific tests based on command line arguments
+    if (runCpuTest) {
+        stressTester->runTest("CPU Stress Test");
+    }
+    
+    if (runMemoryTest) {
+        stressTester->runTest("Memory Stress Test");
+    }
+    
+    if (runGpuTest) {
+        stressTester->runTest("GPU Stress Test");
+    }
+    
+    if (runDiskTest) {
+        stressTester->runTest("Disk Stress Test");
+    }
+    
+    // If no specific tests were requested, run all tests
+    if (!runCpuTest && !runMemoryTest && !runGpuTest && !runDiskTest) {
+        stressTester->runAllTests();
+    }
+    
+    // Stop system monitoring
+    systemMonitor->stopMonitoring();
+    
+    // Print test results
+    auto results = stressTester->getTestResults();
+    LOGGER.info("Test Results Summary:");
+    for (const auto& result : results) {
+        LOGGER.info("  " + result.name + ": " + 
+                   std::to_string(result.duration.count()) + "ms");
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -133,13 +196,7 @@ int main(int argc, char* argv[]) {
             runSystemMonitoring();
         } else {
             // Run stress tests
-            LOGGER.info("Starting stress tests...");
-            LOGGER.info("Duration: " + std::to_string(duration.count()) + "ms");
-            LOGGER.info("Intensity: " + std::to_string(intensity));
-            
-            // TODO: Add actual stress test implementations
-            // For now, just run system monitoring
-            runSystemMonitoring();
+            runStressTests(runCpuTest, runMemoryTest, runGpuTest, runDiskTest, duration, intensity);
         }
         
     } catch (const std::exception& e) {

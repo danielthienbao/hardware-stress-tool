@@ -67,6 +67,79 @@ protected:
     std::chrono::system_clock::time_point startTime_;
 };
 
+// Concrete stress test implementations
+class CpuStressTest : public StressTest {
+public:
+    CpuStressTest();
+    ~CpuStressTest();
+    
+    void start() override;
+    void stop() override;
+    bool isRunning() const override;
+    TestResult getResult() const override;
+    void setConfig(const TestConfig& config) override;
+
+private:
+    void cpuStressLoop();
+    std::vector<std::thread> workerThreads_;
+    std::atomic<bool> stopRequested_{false};
+};
+
+class MemoryStressTest : public StressTest {
+public:
+    MemoryStressTest();
+    ~MemoryStressTest();
+    
+    void start() override;
+    void stop() override;
+    bool isRunning() const override;
+    TestResult getResult() const override;
+    void setConfig(const TestConfig& config) override;
+
+private:
+    void memoryStressLoop();
+    std::vector<std::thread> workerThreads_;
+    std::vector<std::vector<uint8_t>> memoryBlocks_;
+    std::atomic<bool> stopRequested_{false};
+    std::mutex memoryMutex_;
+};
+
+class DiskStressTest : public StressTest {
+public:
+    DiskStressTest();
+    ~DiskStressTest();
+    
+    void start() override;
+    void stop() override;
+    bool isRunning() const override;
+    TestResult getResult() const override;
+    void setConfig(const TestConfig& config) override;
+
+private:
+    void diskStressLoop();
+    std::vector<std::thread> workerThreads_;
+    std::atomic<bool> stopRequested_{false};
+    std::string tempDir_;
+    std::vector<std::string> tempFiles_;
+};
+
+class GpuStressTest : public StressTest {
+public:
+    GpuStressTest();
+    ~GpuStressTest();
+    
+    void start() override;
+    void stop() override;
+    bool isRunning() const override;
+    TestResult getResult() const override;
+    void setConfig(const TestConfig& config) override;
+
+private:
+    void gpuStressLoop();
+    std::vector<std::thread> workerThreads_;
+    std::atomic<bool> stopRequested_{false};
+};
+
 class StressTester {
 public:
     StressTester();
