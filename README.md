@@ -1,61 +1,111 @@
 # Hardware Stress Diagnostic Tool
 
-A lightweight C++ and shell-based tool for simulating hardware stress conditions and validating system stability on Windows/Linux environments.
+This is a C++ project for stress testing and monitoring hardware on Windows and Linux. It was developed as a practical tool for learning about system resource management, multithreading, and cross-platform development. The tool can run CPU, memory, disk, and simulated GPU stress tests, monitor system metrics in real time, and inject various types of faults for robustness testing.
+
+## Project Status
+
+- Core features: implemented and tested
+- Unit and integration tests: included
+- Documentation: mostly complete
+- Cross-platform: Windows 10/11 and Linux (tested on Ubuntu 20.04)
 
 ## Features
 
-- **System Monitoring**: Real-time CPU, memory, temperature, and GPU monitoring
-- **Logging System**: Thread-safe logging with multiple levels and file output
-- **Stress Testing Framework**: Extensible framework for different types of stress tests
-- **Fault Injection**: Simulate hardware failures and system stress conditions
-- **Cross-Platform**: Windows and Linux support
+### Main Components
+- **System Monitor**: Collects CPU, memory, and temperature metrics using platform-specific APIs
+- **Stress Tester**: Runs different types of stress tests (CPU, memory, disk, simulated GPU)
+- **Fault Injector**: Simulates faults like memory corruption, CPU overload, disk I/O errors, etc.
+- **Logger**: Thread-safe logging to file and console
+- **CLI**: Command-line interface for configuring and running tests
 
-## Quick Start
+### Stress Test Types
+- **CPU Stress Test**: Multi-threaded floating point calculations
+- **Memory Stress Test**: Allocates and accesses large memory blocks
+- **Disk I/O Stress Test**: Writes and reads temporary files
+- **GPU Stress Test**: Simulates matrix operations (CPU-based, not real GPU)
 
-### Prerequisites
-- **CMake** (3.16 or higher)
-- **C++17** compatible compiler
-  - Windows: Visual Studio 2019+ or MinGW-w64
-  - Linux: GCC 7+ or Clang 6+
+### Fault Injection
+- Memory corruption (simulated)
+- CPU overload (extra threads)
+- Disk I/O errors (file access issues)
+- Network issues (simulated, not real network)
+- Timing anomalies (delays)
+- Process management (simulated process kill)
 
-### Building
+### Safety
+- All stress tests are configurable (intensity, duration)
+- Automatic cleanup of temporary files and threads
+- Handles Ctrl+C and other interrupts for safe shutdown
+
+## Requirements
+
+- CMake 3.16+
+- C++17 compiler (Visual Studio 2019+, GCC 7+, or Clang 6+)
+- Python 3.6+ (for test scripts)
+- Windows 10/11 or Linux (tested on Ubuntu 20.04)
+
+## Building
 
 **Windows:**
-```batch
+```
 scripts\build.bat
 ```
 
 **Linux:**
-```bash
+```
 chmod +x scripts/build.sh
 ./scripts/build.sh
 ```
 
-### Usage
+## Usage
 
-**System Monitoring:**
-```bash
-./hardware-stress-tool --monitor-only
+**Show help:**
+```
+./build/hardware-stress-tool --help
 ```
 
-**Stress Testing:**
-```bash
-# CPU stress test for 5 minutes
-./hardware-stress-tool --cpu-test --duration 300000
-
-# Memory stress test with high intensity
-./hardware-stress-tool --memory-test --intensity 8
-
-# Multiple tests with fault injection
-./hardware-stress-tool --cpu-test --memory-test --fault-injection
+**Monitor system (10 seconds):**
+```
+./build/hardware-stress-tool --monitor-only --duration 10000
 ```
 
-**Command Line Options:**
+**CPU stress test (30 seconds, intensity 4):**
+```
+./build/hardware-stress-tool --cpu-test --duration 30000 --intensity 4
+```
+
+**Memory stress test (1 minute, intensity 5):**
+```
+./build/hardware-stress-tool --memory-test --duration 60000 --intensity 5
+```
+
+**Disk I/O stress test (20 seconds, intensity 3):**
+```
+./build/hardware-stress-tool --disk-test --duration 20000 --intensity 3
+```
+
+**Run all tests (1 minute, intensity 5):**
+```
+./build/hardware-stress-tool --duration 60000 --intensity 5
+```
+
+**Enable fault injection:**
+```
+./build/hardware-stress-tool --cpu-test --fault-injection --duration 20000
+```
+
+**Custom log file:**
+```
+./build/hardware-stress-tool --memory-test --log-file my_test.log --duration 15000
+```
+
+## Command Line Options
+
 ```
 --help, -h           Show help message
 --cpu-test           Run CPU stress test
 --memory-test        Run memory stress test
---gpu-test           Run GPU stress test
+--gpu-test           Run GPU stress test (simulated)
 --disk-test          Run disk I/O stress test
 --duration <ms>      Test duration in milliseconds (default: 300000)
 --intensity <1-10>   Test intensity level (default: 5)
@@ -64,42 +114,54 @@ chmod +x scripts/build.sh
 --fault-injection    Enable fault injection during tests
 ```
 
+## Output and Logs
+
+- Logs are written to `stress_test.log` by default (or the file you specify)
+- Log levels: INFO (main events), DEBUG (metrics), WARNING, ERROR
+- Example log line:
+  ```
+  [DEBUG] SYSTEM_METRICS CPU:45.2% MEM:67.8% TEMP:52.1°C
+  ```
+
+## Testing
+
+- Run the foundation test to check structure and syntax:
+  ```
+  python scripts/test_foundation.py
+  ```
+- Run all tests (build, unit, integration):
+  ```
+  python scripts/run_tests.py
+  ```
+- Run the demo script for usage examples:
+  ```
+  python scripts/demo.py
+  ```
+
 ## Project Structure
 
 ```
 hardware-stress-tool/
 ├── include/                 # Header files
 ├── src/                    # Source files
-├── scripts/               # Build and utility scripts
-├── tests/                # Test files
-├── CMakeLists.txt        # CMake configuration
-└── README.md            # This file
+├── scripts/                # Build and utility scripts
+├── tests/                  # Unit tests
+├── CMakeLists.txt          # Build configuration
+├── README.md               # This file
 ```
 
-## Testing
+## Notes and Limitations
 
-Run the foundation test to verify the project structure:
-```bash
-python scripts/validate_structure.py
-```
-
-Run a mock test to see the tool in action:
-```bash
-python scripts/test_foundation.py
-```
+- The GPU stress test is simulated on CPU (no CUDA/OpenCL yet)
+- Network and process faults are simulated, not real network attacks
+- Use low intensity and short durations on laptops or old hardware
+- Always monitor system temperature and be ready to stop tests
+- This is a student project, not a commercial tool. Use at your own risk.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+If you want to contribute, fork the repo and submit a pull request. Please make sure your code builds and passes all tests. Suggestions and bug reports are welcome.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-⚠️ **Warning**: This tool is designed for testing and development purposes. Running stress tests can potentially cause system instability, data loss, or hardware damage. Use at your own risk and ensure you have proper backups before running any stress tests.
+MIT License. See LICENSE file for details.

@@ -36,4 +36,10 @@ add_executable(hardware-stress-tool ${SOURCES})
 target_link_libraries(hardware-stress-tool Threads::Threads)
 
 # Install target
-install(TARGETS hardware-stress-tool DESTINATION bin) 
+install(TARGETS hardware-stress-tool DESTINATION bin)
+
+# Test target
+enable_testing()
+add_executable(stress_tool_tests tests/test_stress_tester.cpp ${SOURCES})
+target_link_libraries(stress_tool_tests Threads::Threads)
+add_test(NAME StressToolTests COMMAND stress_tool_tests) 
