@@ -1,0 +1,43 @@
+{
+  "general": {
+    "log_level": "INFO",
+    "log_file": "stress_tool.log",
+    "enable_console_output": true
+  },
+  "cpu_test": {
+    "duration_seconds": 60,
+    "thread_count": 0,
+    "target_load": 0.8
+  },
+  "memory_test": {
+    "duration_seconds": 60,
+    "memory_size_mb": 100,
+    "thread_count": 4
+  },
+  "disk_test": {
+    "duration_seconds": 60,
+    "file_path": "./stress_test_file.tmp",
+    "thread_count": 2,
+    "block_size_mb": 1
+  },
+  "gpu_test": {
+    "duration_seconds": 60,
+    "matrix_size": 128,
+    "thread_count": 0
+  },
+  "monitoring": {
+    "update_interval_ms": 1000,
+    "enable_temperature": false
+  },
+  "fault_injection": {
+    "enabled": false,
+    "probability": 0.1,
+    "enable_recovery": true,
+    "duration_ms": 100
+  },
+  "safety": {
+    "max_cpu_temp": 85,
+    "max_memory_usage_percent": 90,
+    "enable_auto_shutdown": true
+  }
+} 

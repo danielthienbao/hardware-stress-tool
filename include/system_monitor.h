@@ -1,85 +1,57 @@
 #pragma once
-
 #include <string>
-#include <vector>
 #include <thread>
 #include <atomic>
-#include <functional>
-#include <chrono>
+#include <vector>
+#include <memory>
 #include <mutex>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <pdh.h>
-#endif
-
-namespace hwstress {
+#include <functional>
 
 struct SystemMetrics {
     double cpuUsage = 0.0;
     double memoryUsage = 0.0;
-    double temperature = 0.0;
-    double gpuUsage = 0.0;
-    double gpuTemperature = 0.0;
-    uint64_t totalMemory = 0;
-    uint64_t availableMemory = 0;
-    std::chrono::system_clock::time_point timestamp;
-};
-
-struct ProcessInfo {
-    int pid;
-    std::string name;
-    double cpuUsage;
-    uint64_t memoryUsage;
-    std::string status;
+    size_t totalMemory = 0;
+    size_t availableMemory = 0;
+    double diskUsage = 0.0;
+    size_t totalDisk = 0;
+    size_t availableDisk = 0;
+    std::vector<double> coreUsage;
+    double temperature = 0.0; // CPU temperature if available
 };
 
 class SystemMonitor {
 public:
     SystemMonitor();
     ~SystemMonitor();
-    
-    void startMonitoring();
+
+    void startMonitoring(int intervalMs = 1000);
     void stopMonitoring();
-    bool isMonitoring() const;
-    
-    SystemMetrics getCurrentMetrics() const;
-    std::vector<ProcessInfo> getProcessList() const;
-    
-    void setMonitoringInterval(int intervalMs);
-    void setMetricsCallback(std::function<void(const SystemMetrics&)> callback);
-    
-    // Platform-specific implementations
-    double getCpuUsage();
-    double getMemoryUsage();
-    double getTemperature();
-    double getGpuUsage();
-    double getGpuTemperature();
-    
-    std::vector<ProcessInfo> getTopProcesses(int count = 10);
-    ProcessInfo getProcessInfo(int pid);
+    SystemMetrics getCurrentMetrics();
+    void setMonitoringCallback(std::function<void(const SystemMetrics&)> callback);
+
+    // Static utility functions
+    static int getCoreCount();
+    static std::string getSystemInfo();
 
 private:
-    void monitoringLoop();
-    void updateMetrics();
-    
-    std::thread monitoringThread_;
-    std::atomic<bool> running_{false};
-    std::atomic<int> monitoringInterval_{1000};
-    
-    mutable std::mutex metricsMutex_;
-    SystemMetrics currentMetrics_;
-    
-    std::function<void(const SystemMetrics&)> metricsCallback_;
-    
-    // Platform-specific data
-    #ifdef _WIN32
-    // Windows-specific members
-    PDH_HQUERY cpuQuery_ = nullptr;
-    PDH_HCOUNTER cpuCounter_ = nullptr;
-    #else
-    // Linux-specific members
-    #endif
-};
+    std::atomic<bool> monitoring;
+    std::unique_ptr<std::thread> monitorThread;
+    SystemMetrics currentMetrics;
+    std::mutex metricsMutex;
+    std::function<void(const SystemMetrics&)> metricsCallback;
 
-} // namespace hwstress 
+    void monitoringLoop(int intervalMs);
+    void updateCpuUsage();
+    void updateMemoryUsage();
+    void updateDiskUsage();
+    void updateTemperature();
+
+#ifdef _WIN32
+    void* pdh_cpu_query = nullptr;
+    void* pdh_cpu_counter = nullptr;
+    void* pdh_memory_counter = nullptr;
+#else
+    std::vector<size_t> lastCpuTimes;
+    std::vector<size_t> lastIdleTimes;
+#endif
+}; 

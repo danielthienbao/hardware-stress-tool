@@ -3,99 +3,53 @@
 #include <iomanip>
 #include <sstream>
 
-namespace hwstress {
-
 Logger& Logger::getInstance() {
     static Logger instance;
     return instance;
 }
 
-void Logger::setLogFile(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(logMutex_);
-    if (logFile_.is_open()) {
-        logFile_.close();
+Logger::~Logger() {
+    if (logFile.is_open()) {
+        logFile.close();
     }
-    logFile_.open(filename, std::ios::app);
 }
 
-void Logger::setLogLevel(LogLevel level) {
-    currentLevel_ = level;
+void Logger::initialize(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    if (logFile.is_open()) {
+        logFile.close();
+    }
+    logFile.open(filename, std::ios::app);
+    if (!logFile.is_open()) {
+        std::cerr << "Failed to open log file: " << filename << std::endl;
+    }
 }
 
 void Logger::log(LogLevel level, const std::string& message) {
-    if (level < currentLevel_) {
+    if (level < currentLogLevel) {
         return;
     }
-    
-    std::lock_guard<std::mutex> lock(logMutex_);
-    
-    std::string timestamp = getTimestamp();
-    std::string levelStr = levelToString(level);
-    
-    std::string logMessage = "[" + timestamp + "] [" + levelStr + "] " + message;
-    
-    if (consoleOutput_) {
-        std::cout << logMessage << std::endl;
+
+    std::lock_guard<std::mutex> lock(logMutex);
+    std::string logEntry = "[" + getTimestamp() + "] " + 
+                          levelToString(level) + ": " + message;
+
+    if (consoleOutput) {
+        std::cout << logEntry << std::endl;
     }
-    
-    if (logFile_.is_open()) {
-        logFile_ << logMessage << std::endl;
-        logFile_.flush();
+
+    if (logFile.is_open()) {
+        logFile << logEntry << std::endl;
+        logFile.flush();
     }
 }
 
-void Logger::debug(const std::string& message) {
-    log(LogLevel::DEBUG, message);
+void Logger::setLogLevel(LogLevel level) {
+    currentLogLevel = level;
 }
 
-void Logger::info(const std::string& message) {
-    log(LogLevel::INFO, message);
-}
-
-void Logger::warning(const std::string& message) {
-    log(LogLevel::WARNING, message);
-}
-
-void Logger::error(const std::string& message) {
-    log(LogLevel::ERROR, message);
-}
-
-void Logger::critical(const std::string& message) {
-    log(LogLevel::CRITICAL, message);
-}
-
-void Logger::logStressTest(const std::string& testName, const std::string& status, 
-                          const std::string& details) {
-    std::string message = "STRESS_TEST [" + testName + "] " + status;
-    if (!details.empty()) {
-        message += " - " + details;
-    }
-    info(message);
-}
-
-void Logger::logSystemMetrics(double cpuUsage, double memoryUsage, double temperature) {
-    std::ostringstream oss;
-    oss << "SYSTEM_METRICS CPU:" << std::fixed << std::setprecision(1) << cpuUsage 
-        << "% MEM:" << memoryUsage << "% TEMP:" << temperature << "°C";
-    debug(oss.str());
-}
-
-void Logger::logFaultInjection(const std::string& faultType, const std::string& target, 
-                              bool success) {
-    std::string status = success ? "SUCCESS" : "FAILED";
-    std::string message = "FAULT_INJECTION [" + faultType + "] " + target + " - " + status;
-    info(message);
-}
-
-std::string Logger::levelToString(LogLevel level) {
-    switch (level) {
-        case LogLevel::DEBUG: return "DEBUG";
-        case LogLevel::INFO: return "INFO";
-        case LogLevel::WARNING: return "WARN";
-        case LogLevel::ERROR: return "ERROR";
-        case LogLevel::CRITICAL: return "CRIT";
-        default: return "UNKNOWN";
-    }
+void Logger::enableConsoleOutput(bool enable) {
+    consoleOutput = enable;
 }
 
 std::string Logger::getTimestamp() {
@@ -110,4 +64,12 @@ std::string Logger::getTimestamp() {
     return ss.str();
 }
 
-} // namespace hwstress 
+std::string Logger::levelToString(LogLevel level) {
+    switch (level) {
+        case LogLevel::DEBUG: return "DEBUG";
+        case LogLevel::INFO: return "INFO";
+        case LogLevel::WARNING: return "WARNING";
+        case LogLevel::ERROR: return "ERROR";
+        default: return "UNKNOWN";
+    }
+} 

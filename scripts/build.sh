@@ -1,16 +1,12 @@
 #!/bin/bash
 
-echo "Building Hardware Stress Diagnostic Tool..."
-
-# Check if CMake is available
-if ! command -v cmake &> /dev/null; then
-    echo "Error: CMake not found. Please install CMake."
-    exit 1
-fi
+echo "Hardware Stress Diagnostic Tool - Build Script"
+echo "=============================================="
 
 # Check if g++ is available
 if ! command -v g++ &> /dev/null; then
-    echo "Error: g++ not found. Please install GCC."
+    echo "g++ compiler not found. Please install build-essential:"
+    echo "sudo apt-get install build-essential"
     exit 1
 fi
 
@@ -18,23 +14,37 @@ fi
 mkdir -p build
 cd build
 
-# Configure with CMake
-echo "Configuring with CMake..."
-cmake .. -DCMAKE_BUILD_TYPE=Release
-if [ $? -ne 0 ]; then
-    echo "Error: CMake configuration failed."
+# Check for CMake
+if command -v cmake &> /dev/null; then
+    echo "Using CMake build system..."
+    cmake .. -DCMAKE_BUILD_TYPE=Release
+    make -j$(nproc)
+else
+    echo "CMake not found, using manual compilation..."
+    
+    # Manual compilation
+    echo "Compiling source files..."
+    g++ -std=c++17 -O2 -Wall -Wextra \
+        -I../include \
+        ../src/main.cpp \
+        ../src/logger.cpp \
+        ../src/stress_tester.cpp \
+        ../src/system_monitor.cpp \
+        ../src/fault_injector.cpp \
+        -o stress_tool \
+        -pthread
+fi
+
+if [ $? -eq 0 ]; then
+    echo "Build successful!"
+    echo "Executable: build/stress_tool"
+    
+    # Make executable
+    chmod +x stress_tool
+else
+    echo "Build failed!"
     exit 1
 fi
 
-# Build the project
-echo "Building project..."
-make -j$(nproc)
-if [ $? -ne 0 ]; then
-    echo "Error: Build failed."
-    exit 1
-fi
-
-echo "Build completed successfully!"
-echo "Executable location: build/hardware-stress-tool"
-
-cd .. 
+cd ..
+echo "Build completed." 

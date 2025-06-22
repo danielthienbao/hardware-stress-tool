@@ -1,21 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(hardware-stress-tool VERSION 1.0.0 LANGUAGES CXX)
+project(HardwareStressTool)
 
-# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
-# Compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-
-# Find required packages
-find_package(Threads REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -29,17 +16,33 @@ set(SOURCES
     src/fault_injector.cpp
 )
 
+# Header files
+set(HEADERS
+    include/stress_tester.h
+    include/system_monitor.h
+    include/logger.h
+    include/fault_injector.h
+)
+
 # Create executable
-add_executable(hardware-stress-tool ${SOURCES})
+add_executable(stress_tool ${SOURCES} ${HEADERS})
 
-# Link libraries
-target_link_libraries(hardware-stress-tool Threads::Threads)
+# Platform-specific libraries and compiler flags
+if(WIN32)
+    target_link_libraries(stress_tool PRIVATE ws2_32 psapi)
+    target_compile_definitions(stress_tool PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+elseif(UNIX)
+    target_link_libraries(stress_tool PRIVATE pthread)
+endif()
 
-# Install target
-install(TARGETS hardware-stress-tool DESTINATION bin)
+# Compiler-specific options
+if(MSVC)
+    target_compile_options(stress_tool PRIVATE /W4)
+else()
+    target_compile_options(stress_tool PRIVATE -Wall -Wextra -O2)
+endif()
 
-# Test target
-enable_testing()
-add_executable(stress_tool_tests tests/test_stress_tester.cpp ${SOURCES})
-target_link_libraries(stress_tool_tests Threads::Threads)
-add_test(NAME StressToolTests COMMAND stress_tool_tests) 
+# Set output directory
+set_target_properties(stress_tool PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+) 

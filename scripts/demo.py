@@ -1,320 +1,262 @@
 #!/usr/bin/env python3
 """
-Hardware Stress Tool - Demonstration Script
-Shows how to use the tool and its various features.
+Hardware Stress Diagnostic Tool - Demo Simulator
+This script demonstrates what the C++ tool does without requiring compilation.
 """
 
+import time
+import random
+import threading
+import psutil
 import os
 import sys
-import time
-import subprocess
-from pathlib import Path
 
-def print_header(title):
-    print(f"\n{'='*60}")
-    print(f"  {title}")
-    print(f"{'='*60}")
-
-def print_section(title):
-    print(f"\n{'-'*40}")
-    print(f"  {title}")
-    print(f"{'-'*40}")
-
-def check_build_status():
-    """Check if the tool is built and ready to use."""
-    print_header("BUILD STATUS CHECK")
+class HardwareStressDemo:
+    def __init__(self):
+        self.running = False
+        
+    def print_banner(self):
+        print("=" * 50)
+        print("    Hardware Stress Diagnostic Tool - DEMO")
+        print("=" * 50)
+        print("This Python demo simulates the C++ implementation")
+        print("Cross-platform hardware stress testing utility\n")
     
-    executable_name = "hardware-stress-tool"
-    if os.name == 'nt':  # Windows
-        executable_name += ".exe"
+    def get_system_info(self):
+        print("System Information:")
+        print("=" * 19)
+        print(f"CPU Cores: {psutil.cpu_count()}")
+        print(f"CPU Physical Cores: {psutil.cpu_count(logical=False)}")
+        
+        memory = psutil.virtual_memory()
+        print(f"Total RAM: {memory.total // (1024*1024)} MB")
+        print(f"Available RAM: {memory.available // (1024*1024)} MB")
+        
+        disk = psutil.disk_usage('/')
+        print(f"Total Disk Space: {disk.total // (1024*1024*1024)} GB")
+        print(f"Free Disk Space: {disk.free // (1024*1024*1024)} GB")
+        print()
     
-    build_paths = [
-        f"build/{executable_name}",
-        f"Debug/{executable_name}",
-        f"Release/{executable_name}",
-        executable_name
-    ]
+    def simulate_cpu_stress(self, duration=10):
+        print(f"Simulating CPU Stress Test ({duration}s)...")
+        print("Progress: [", end="", flush=True)
+        
+        start_time = time.time()
+        operations = 0
+        
+        def cpu_worker():
+            nonlocal operations
+            while self.running:
+                # Simulate CPU-intensive work
+                sum(i*i for i in range(1000))
+                operations += 1
+                time.sleep(0.001)
+        
+        # Start worker threads
+        self.running = True
+        threads = []
+        for _ in range(psutil.cpu_count()):
+            t = threading.Thread(target=cpu_worker)
+            t.start()
+            threads.append(t)
+        
+        # Progress display
+        for i in range(20):
+            time.sleep(duration / 20)
+            print("=", end="", flush=True)
+        
+        self.running = False
+        for t in threads:
+            t.join()
+        
+        print("]")
+        print(f"CPU stress test completed!")
+        print(f"Operations performed: {operations}")
+        print(f"Threads used: {len(threads)}")
+        print()
     
-    for path in build_paths:
-        if os.path.exists(path):
-            print(f"✓ Found executable: {path}")
-            return path
+    def simulate_memory_stress(self, duration=10):
+        print(f"Simulating Memory Stress Test ({duration}s)...")
+        print("Progress: [", end="", flush=True)
+        
+        memory_blocks = []
+        block_size = 10 * 1024 * 1024  # 10 MB blocks
+        
+        for i in range(20):
+            try:
+                # Allocate memory block
+                block = bytearray(block_size)
+                # Fill with random data
+                for j in range(0, len(block), 1024):
+                    block[j] = random.randint(0, 255)
+                memory_blocks.append(block)
+                
+                print("=", end="", flush=True)
+                time.sleep(duration / 20)
+                
+            except MemoryError:
+                print("\n⚠ Memory allocation limit reached")
+                break
+        
+        # Clean up
+        del memory_blocks
+        
+        print("]")
+        print(f"Memory stress test completed!")
+        print()
     
-    print("✗ Executable not found. Please build the project first:")
-    print("  Windows: scripts/build.bat")
-    print("  Linux:   scripts/build.sh")
-    return None
-
-def show_usage_examples():
-    """Show various usage examples for the tool."""
-    print_header("USAGE EXAMPLES")
+    def simulate_disk_stress(self, duration=10):
+        print(f"Simulating Disk Stress Test ({duration}s)...")
+        print("Progress: [", end="", flush=True)
+        
+        test_file = "stress_test_temp.dat"
+        data = b"A" * (1024 * 1024)  # 1 MB of data
+        operations = 0
+        
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            try:
+                # Write test
+                with open(test_file, "wb") as f:
+                    f.write(data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                
+                # Read test
+                with open(test_file, "rb") as f:
+                    read_data = f.read()
+                    if read_data != data:
+                        print("\n⚠ Data integrity error!")
+                
+                operations += 1
+                
+                # Progress display
+                elapsed = time.time() - start_time
+                progress = int((elapsed / duration) * 20)
+                print("\r" + "Progress: [" + "=" * progress + " " * (20 - progress) + "]", end="", flush=True)
+                
+            except IOError as e:
+                print(f"\n⚠ I/O Error: {e}")
+                break
+        
+        # Clean up
+        try:
+            os.remove(test_file)
+        except:
+            pass
+        
+        print("]")
+        print(f"Disk stress test completed!")
+        print(f"I/O operations: {operations}")
+        print()
     
-    examples = [
-        {
-            "title": "System Monitoring Only",
-            "command": "hardware-stress-tool --monitor-only --duration 10000",
-            "description": "Monitor system metrics for 10 seconds without running stress tests"
-        },
-        {
-            "title": "CPU Stress Test",
-            "command": "hardware-stress-tool --cpu-test --intensity 7 --duration 30000",
-            "description": "Run CPU stress test with high intensity for 30 seconds"
-        },
-        {
-            "title": "Memory Stress Test",
-            "command": "hardware-stress-tool --memory-test --intensity 5 --duration 20000",
-            "description": "Run memory stress test with medium intensity for 20 seconds"
-        },
-        {
-            "title": "Disk I/O Stress Test",
-            "command": "hardware-stress-tool --disk-test --intensity 3 --duration 15000",
-            "description": "Run disk I/O stress test with low intensity for 15 seconds"
-        },
-        {
-            "title": "GPU Stress Test",
-            "command": "hardware-stress-tool --gpu-test --intensity 6 --duration 25000",
-            "description": "Run GPU stress test with medium-high intensity for 25 seconds"
-        },
-        {
-            "title": "Multiple Tests",
-            "command": "hardware-stress-tool --cpu-test --memory-test --intensity 4 --duration 45000",
-            "description": "Run both CPU and memory stress tests for 45 seconds"
-        },
-        {
-            "title": "All Tests with Fault Injection",
-            "command": "hardware-stress-tool --fault-injection --intensity 5 --duration 60000",
-            "description": "Run all stress tests with fault injection enabled for 1 minute"
-        },
-        {
-            "title": "Custom Log File",
-            "command": "hardware-stress-tool --cpu-test --log-file custom_test.log --duration 20000",
-            "description": "Run CPU test and save logs to custom file"
-        }
-    ]
+    def simulate_system_monitoring(self, duration=15):
+        print(f"Simulating System Monitoring ({duration}s)...")
+        print("Real-time metrics (updating every second):\n")
+        
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            # Get current system metrics
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            # Display metrics
+            print(f"\rCPU: {cpu_percent:5.1f}%  " +
+                  f"Memory: {memory.percent:5.1f}%  " +
+                  f"Disk: {(disk.used/disk.total)*100:5.1f}%  " +
+                  f"RAM: {memory.used//(1024*1024):5d}MB used", end="", flush=True)
+        
+        print("\n\nSystem monitoring completed!")
+        print()
     
-    for i, example in enumerate(examples, 1):
-        print(f"\n{i}. {example['title']}")
-        print(f"   Command: {example['command']}")
-        print(f"   Description: {example['description']}")
-
-def show_feature_overview():
-    """Show an overview of the tool's features."""
-    print_header("FEATURE OVERVIEW")
+    def simulate_fault_injection(self):
+        print("Simulating Fault Injection Demo...")
+        print("Demonstrating fault injection capabilities:\n")
+        
+        fault_types = [
+            ("Random Delay", "Injecting 100-500ms delays"),
+            ("Resource Exhaustion", "Simulating temporary resource shortage"),
+            ("Exception Injection", "Throwing recoverable exceptions"),
+            ("Memory Corruption", "Detecting memory integrity issues"),
+            ("Thread Deadlock", "Simulating deadlock detection and recovery"),
+            ("Disk I/O Failure", "Simulating storage device failures"),
+            ("Network Timeout", "Simulating network connectivity issues")
+        ]
+        
+        for fault_name, description in fault_types:
+            print(f"Injecting fault: {fault_name}")
+            print(f"  Description: {description}")
+            
+            # Simulate fault injection
+            delay = random.uniform(0.1, 0.5)
+            time.sleep(delay)
+            
+            # Simulate recovery
+            recovery_success = random.choice([True, True, True, False])  # 75% success rate
+            print(f"  Recovery: {'SUCCESS' if recovery_success else 'FAILED'}")
+            print(f"  Recovery time: {delay*1000:.0f}ms\n")
+            
+            time.sleep(0.5)
+        
+        print("Fault injection demo completed!")
+        print()
     
-    features = [
-        {
-            "category": "Stress Tests",
-            "items": [
-                "CPU Stress Test - Multi-threaded CPU-intensive calculations",
-                "Memory Stress Test - Dynamic memory allocation and access patterns",
-                "Disk I/O Stress Test - File creation, writing, and verification",
-                "GPU Stress Test - Matrix operations simulating GPU workloads"
-            ]
-        },
-        {
-            "category": "System Monitoring",
-            "items": [
-                "Real-time CPU usage monitoring (Windows PDH, Linux /proc/stat)",
-                "Memory usage tracking (Windows GlobalMemoryStatusEx, Linux sysinfo)",
-                "Temperature monitoring (Linux thermal zones, Windows estimation)",
-                "GPU usage and temperature monitoring (platform-specific)",
-                "Configurable monitoring intervals and callbacks"
-            ]
-        },
-        {
-            "category": "Fault Injection",
-            "items": [
-                "Memory corruption simulation",
-                "CPU overload injection",
-                "Disk I/O error simulation",
-                "Network packet loss simulation",
-                "Timing anomaly injection",
-                "Process termination",
-                "System call failure simulation",
-                "Auto-recovery mechanisms"
-            ]
-        },
-        {
-            "category": "Logging & Reporting",
-            "items": [
-                "Multi-level logging (DEBUG, INFO, WARNING, ERROR)",
-                "Thread-safe logging with timestamps",
-                "Configurable log files and levels",
-                "System metrics logging",
-                "Test result reporting"
-            ]
-        },
-        {
-            "category": "Configuration",
-            "items": [
-                "Command-line argument parsing",
-                "Configurable test intensity (1-10 scale)",
-                "Adjustable test duration",
-                "Individual or combined test execution",
-                "Cross-platform support (Windows/Linux)"
-            ]
-        }
-    ]
+    def show_menu(self):
+        print("Select test type:")
+        print("1. CPU Stress Test")
+        print("2. Memory Stress Test") 
+        print("3. Disk Stress Test")
+        print("4. System Monitor Demo")
+        print("5. Fault Injection Demo")
+        print("6. Run All Tests")
+        print("0. Exit")
+        return input("Choice: ").strip()
     
-    for feature in features:
-        print(f"\n{feature['category']}:")
-        for item in feature['items']:
-            print(f"  • {item}")
-
-def show_architecture_overview():
-    """Show the tool's architecture and design."""
-    print_header("ARCHITECTURE OVERVIEW")
-    
-    print("""
-The Hardware Stress Tool is built with a modular, extensible architecture:
-
-┌─────────────────────────────────────────────────────────────┐
-│                    Main Application                         │
-│  (main.cpp) - Command line interface and orchestration     │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-    ┌─────────────┼─────────────┐
-    │             │             │
-┌───▼───┐   ┌────▼────┐   ┌────▼────┐
-│Logger │   │System   │   │Stress   │
-│       │   │Monitor  │   │Tester   │
-└───────┘   └─────────┘   └─────────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-         ┌────▼───┐   ┌────▼───┐   ┌────▼───┐
-         │CPU     │   │Memory  │   │Disk    │
-         │Stress  │   │Stress  │   │Stress  │
-         └────────┘   └────────┘   └────────┘
-
-Key Design Principles:
-• Separation of Concerns - Each component has a specific responsibility
-• Extensibility - Easy to add new stress tests and fault types
-• Thread Safety - All components are designed for concurrent operation
-• Platform Independence - Abstract interfaces with platform-specific implementations
-• Error Handling - Comprehensive error handling and recovery mechanisms
-""")
-
-def show_test_results_analysis():
-    """Show how to analyze test results."""
-    print_header("TEST RESULTS ANALYSIS")
-    
-    print("""
-When running stress tests, the tool provides comprehensive results:
-
-1. Real-time Metrics:
-   • CPU usage percentage
-   • Memory usage percentage  
-   • System temperature
-   • GPU usage and temperature
-   • Timestamps for all measurements
-
-2. Test Results:
-   • Test duration and status
-   • Peak resource utilization
-   • Baseline vs. stressed metrics
-   • Error messages and warnings
-
-3. Log Analysis:
-   • Detailed execution logs
-   • Performance bottlenecks
-   • System stability indicators
-   • Fault injection effects
-
-4. Performance Indicators:
-   • Resource saturation levels
-   • Thermal throttling detection
-   • Memory pressure indicators
-   • I/O performance degradation
-
-Example log output:
-[2025-01-20 10:30:15.123] [INFO] Starting CPU stress test with 8 threads
-[2025-01-20 10:30:15.124] [DEBUG] SYSTEM_METRICS CPU:85.2% MEM:45.1% TEMP:67.3°C
-[2025-01-20 10:30:16.125] [DEBUG] SYSTEM_METRICS CPU:92.7% MEM:47.8% TEMP:71.2°C
-[2025-01-20 10:30:17.126] [INFO] CPU stress test completed in 2000ms
-""")
-
-def show_safety_guidelines():
-    """Show safety guidelines for using the tool."""
-    print_header("SAFETY GUIDELINES")
-    
-    print("""
-⚠️  IMPORTANT SAFETY CONSIDERATIONS:
-
-1. System Stability:
-   • Start with low intensity (1-3) and short durations
-   • Monitor system temperature and performance
-   • Stop tests immediately if system becomes unresponsive
-   • Don't run on production systems without proper testing
-
-2. Hardware Protection:
-   • Ensure adequate cooling for CPU and GPU stress tests
-   • Monitor temperature sensors during testing
-   • Avoid running multiple high-intensity tests simultaneously
-   • Be aware of thermal throttling and power limits
-
-3. Data Safety:
-   • Disk stress tests create temporary files - ensure sufficient space
-   • Memory stress tests can cause system slowdown
-   • Fault injection may affect running applications
-   • Always backup important data before testing
-
-4. Recommended Usage:
-   • Use in controlled test environments
-   • Start with system monitoring only
-   • Gradually increase test intensity
-   • Monitor system resources during testing
-   • Have a plan to stop tests if needed (Ctrl+C)
-
-5. Recovery:
-   • Tests automatically clean up resources
-   • Fault injection has auto-recovery mechanisms
-   • System monitoring continues until explicitly stopped
-   • Log files help diagnose any issues
-""")
+    def run(self):
+        self.print_banner()
+        self.get_system_info()
+        
+        while True:
+            choice = self.show_menu()
+            print()
+            
+            if choice == "1":
+                self.simulate_cpu_stress()
+            elif choice == "2":
+                self.simulate_memory_stress()
+            elif choice == "3":
+                self.simulate_disk_stress()
+            elif choice == "4":
+                self.simulate_system_monitoring()
+            elif choice == "5":
+                self.simulate_fault_injection()
+            elif choice == "6":
+                print("Running all tests...")
+                self.simulate_cpu_stress(5)
+                self.simulate_memory_stress(5)
+                self.simulate_disk_stress(5)
+                self.simulate_system_monitoring(10)
+                self.simulate_fault_injection()
+            elif choice == "0":
+                print("Exiting demo...")
+                break
+            else:
+                print("Invalid choice. Please try again.\n")
+            
+            input("Press Enter to continue...")
+            print()
 
 def main():
-    """Main demonstration function."""
-    print_header("HARDWARE STRESS TOOL - DEMONSTRATION")
-    print("This script demonstrates the capabilities and usage of the Hardware Stress Tool.")
-    
-    # Check build status
-    executable_path = check_build_status()
-    
-    # Show features and usage
-    show_feature_overview()
-    show_architecture_overview()
-    show_usage_examples()
-    show_test_results_analysis()
-    show_safety_guidelines()
-    
-    print_header("NEXT STEPS")
-    print("""
-To get started with the Hardware Stress Tool:
-
-1. Build the project:
-   • Windows: scripts/build.bat
-   • Linux:   scripts/build.sh
-
-2. Run the foundation test:
-   • python scripts/test_foundation.py
-
-3. Try basic system monitoring:
-   • hardware-stress-tool --monitor-only --duration 5000
-
-4. Run a simple stress test:
-   • hardware-stress-tool --cpu-test --intensity 3 --duration 10000
-
-5. Check the logs:
-   • Review stress_test.log for detailed information
-
-For more information, see the README.md file.
-""")
-    
-    if executable_path:
-        print(f"\n✅ Tool is ready to use: {executable_path}")
-    else:
-        print("\n⚠️  Please build the project before running tests")
+    try:
+        demo = HardwareStressDemo()
+        demo.run()
+    except KeyboardInterrupt:
+        print("\n\nDemo interrupted by user.")
+    except Exception as e:
+        print(f"\nError: {e}")
+        print("Note: This demo requires the 'psutil' package.")
+        print("Install it with: pip install psutil")
 
 if __name__ == "__main__":
     main() 

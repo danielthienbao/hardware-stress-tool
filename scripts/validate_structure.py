@@ -1,138 +1,168 @@
 #!/usr/bin/env python3
 """
-Validation script for Hardware Stress Diagnostic Tool
-Checks project structure and validates C++ code files
+Hardware Stress Diagnostic Tool - Project Structure Validator
+This script validates the project structure and checks for missing files.
 """
 
 import os
 import sys
-import re
 from pathlib import Path
 
 def check_file_exists(filepath, description):
-    """Check if a file exists and print status"""
+    """Check if a file exists and report the result."""
     if os.path.exists(filepath):
-        print(f"✅ {description}: {filepath}")
+        print(f"✓ {description}: {filepath}")
         return True
     else:
-        print(f"❌ {description}: {filepath} (MISSING)")
+        print(f"✗ {description}: {filepath} (MISSING)")
         return False
 
-def validate_cpp_file(filepath, description, is_header=True):
-    """Validate a C++ file for basic structure"""
-    if not check_file_exists(filepath, description):
+def check_directory_exists(dirpath, description):
+    """Check if a directory exists and report the result."""
+    if os.path.exists(dirpath) and os.path.isdir(dirpath):
+        print(f"✓ {description}: {dirpath}")
+        return True
+    else:
+        print(f"✗ {description}: {dirpath} (MISSING)")
         return False
-    
+
+def validate_cpp_syntax(filepath):
+    """Basic C++ syntax validation (simple checks)."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
+            
+        # Basic syntax checks
+        issues = []
         
-        # Check for basic C++ structure
-        has_namespace = 'namespace hwstress' in content
-        has_std_includes = '#include <' in content
+        # Check for missing semicolons (simplified)
+        lines = content.split('\n')
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped and not stripped.startswith('//') and not stripped.startswith('/*'):
+                # Check for common patterns that should end with semicolon
+                if (stripped.endswith('}') and not stripped.endswith('};') and 
+                    ('class' in stripped or 'struct' in stripped)):
+                    issues.append(f"Line {i}: Possible missing semicolon after class/struct")
         
-        print(f"   - Namespace: {'✅' if has_namespace else '❌'}")
+        # Check for balanced braces
+        open_braces = content.count('{')
+        close_braces = content.count('}')
+        if open_braces != close_braces:
+            issues.append(f"Unbalanced braces: {open_braces} opening, {close_braces} closing")
         
-        if is_header:
-            has_include_guards = '#pragma once' in content or '#ifndef' in content
-            print(f"   - Include guards: {'✅' if has_include_guards else '❌'}")
-            print(f"   - Standard includes: {'✅' if has_std_includes else '❌'}")
-            return has_namespace and has_include_guards and has_std_includes
-        else:
-            print(f"   - Standard includes: {'✅' if has_std_includes else '❌'}")
-            return has_namespace and has_std_includes
-        
+        return issues
     except Exception as e:
-        print(f"   - Error reading file: {e}")
-        return False
+        return [f"Error reading file: {e}"]
 
 def main():
-    print("🔍 Hardware Stress Diagnostic Tool - Structure Validation")
-    print("=" * 60)
+    print("Hardware Stress Diagnostic Tool - Project Validator")
+    print("=" * 55)
+    
+    # Get project root directory
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    
+    print(f"Project root: {project_root}")
+    print()
     
     # Check project structure
-    print("\n📁 Project Structure:")
-    required_dirs = [
-        ('include', 'Header files directory'),
-        ('src', 'Source files directory'),
-        ('scripts', 'Build scripts directory'),
-        ('tests', 'Test files directory')
+    print("Checking project structure...")
+    print("-" * 30)
+    
+    all_good = True
+    
+    # Required directories
+    directories = [
+        ("include", "Header files directory"),
+        ("src", "Source files directory"),
+        ("scripts", "Build scripts directory"),
+        ("build", "Build output directory (will be created during build)")
     ]
     
-    for dirname, description in required_dirs:
-        check_file_exists(dirname, description)
+    for dirname, desc in directories:
+        dirpath = project_root / dirname
+        if dirname == "build":
+            # Build directory is optional
+            if not check_directory_exists(dirpath, desc):
+                print(f"  → Build directory will be created during build process")
+        else:
+            if not check_directory_exists(dirpath, desc):
+                all_good = False
     
-    # Check header files
-    print("\n📋 Header Files:")
-    headers = [
-        ('include/logger.h', 'Logger header'),
-        ('include/system_monitor.h', 'System monitor header'),
-        ('include/stress_tester.h', 'Stress tester header'),
-        ('include/fault_injector.h', 'Fault injector header')
+    print()
+    
+    # Required files
+    print("Checking required files...")
+    print("-" * 25)
+    
+    files = [
+        ("CMakeLists.txt", "CMake build configuration"),
+        ("Makefile", "Unix Makefile"),
+        ("scripts/build.bat", "Windows build script"),
+        ("scripts/build.sh", "Unix build script"),
+        ("include/logger.h", "Logger header"),
+        ("include/stress_tester.h", "Stress tester header"),
+        ("include/system_monitor.h", "System monitor header"),
+        ("include/fault_injector.h", "Fault injector header"),
+        ("src/main.cpp", "Main application"),
+        ("src/logger.cpp", "Logger implementation"),
+        ("src/stress_tester.cpp", "Stress tester implementation"),
+        ("src/system_monitor.cpp", "System monitor implementation"),
+        ("src/fault_injector.cpp", "Fault injector implementation"),
     ]
     
-    header_valid = True
-    for header, description in headers:
-        if not validate_cpp_file(header, description, is_header=True):
-            header_valid = False
+    for filename, desc in files:
+        filepath = project_root / filename
+        if not check_file_exists(filepath, desc):
+            all_good = False
     
-    # Check source files
-    print("\n💻 Source Files:")
-    sources = [
-        ('src/main.cpp', 'Main entry point'),
-        ('src/logger.cpp', 'Logger implementation'),
-        ('src/system_monitor.cpp', 'System monitor implementation'),
-        ('src/stress_tester.cpp', 'Stress tester implementation'),
-        ('src/fault_injector.cpp', 'Fault injector implementation')
+    print()
+    
+    # Basic syntax validation for C++ files
+    print("Performing basic C++ syntax checks...")
+    print("-" * 40)
+    
+    cpp_files = [
+        "src/main.cpp",
+        "src/logger.cpp", 
+        "src/stress_tester.cpp",
+        "src/system_monitor.cpp",
+        "src/fault_injector.cpp"
     ]
     
-    source_valid = True
-    for source, description in sources:
-        if not validate_cpp_file(source, description, is_header=False):
-            source_valid = False
+    for cpp_file in cpp_files:
+        filepath = project_root / cpp_file
+        if os.path.exists(filepath):
+            issues = validate_cpp_syntax(filepath)
+            if issues:
+                print(f"⚠ Issues in {cpp_file}:")
+                for issue in issues:
+                    print(f"  - {issue}")
+                all_good = False
+            else:
+                print(f"✓ {cpp_file}: No obvious syntax issues")
     
-    # Check build files
-    print("\n🔨 Build Files:")
-    build_files = [
-        ('CMakeLists.txt', 'CMake configuration'),
-        ('scripts/build.bat', 'Windows build script'),
-        ('scripts/build.sh', 'Linux build script')
-    ]
-    
-    for build_file, description in build_files:
-        check_file_exists(build_file, description)
-    
-    # Check documentation
-    print("\n📚 Documentation:")
-    docs = [
-        ('README.md', 'Project documentation'),
-        ('LICENSE', 'License file')
-    ]
-    
-    for doc, description in docs:
-        check_file_exists(doc, description)
+    print()
     
     # Summary
-    print("\n" + "=" * 60)
-    print("📊 Validation Summary:")
+    print("Validation Summary")
+    print("-" * 18)
     
-    if header_valid and source_valid:
-        print("✅ All C++ files are properly structured")
-        print("✅ Project foundation is ready for development")
-        print("\n🚀 Next Steps:")
-        print("1. Install CMake (3.16+) and a C++17 compiler")
-        print("2. Run: scripts/build.bat (Windows) or scripts/build.sh (Linux)")
-        print("3. Test with: ./hardware-stress-tool --monitor-only")
-        print("4. Start implementing Phase 2 features")
+    if all_good:
+        print("✓ All checks passed! Project structure looks good.")
+        print()
+        print("Next steps:")
+        print("1. Install a C++ compiler (Visual Studio on Windows, g++ on Linux)")
+        print("2. Optionally install CMake for easier building")
+        print("3. Run the appropriate build script:")
+        print("   - Windows: scripts\\build.bat")
+        print("   - Linux:   scripts/build.sh")
+        print("   - Or use:  make")
+        return 0
     else:
-        print("❌ Some C++ files have issues")
-        print("🔧 Please fix the issues above before proceeding")
-    
-    print("\n📝 Development Phases:")
-    print("Phase 1: Foundation ✅ (Current)")
-    print("Phase 2: Core Stress Tests")
-    print("Phase 3: Advanced Features")
-    print("Phase 4: Production Features")
+        print("✗ Some issues found. Please fix the missing files/directories.")
+        return 1
 
 if __name__ == "__main__":
-    main() 
+    sys.exit(main()) 

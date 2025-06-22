@@ -1,109 +1,69 @@
 #pragma once
-
-#include <string>
+#include <thread>
+#include <atomic>
 #include <vector>
 #include <memory>
 #include <functional>
 #include <chrono>
-#include <thread>
-#include <atomic>
-
-namespace hwstress {
+#include <string>
+#include <random>
+#include <mutex>
 
 enum class FaultType {
     MEMORY_CORRUPTION,
-    CPU_OVERLOAD,
-    DISK_IO_ERROR,
-    NETWORK_PACKET_LOSS,
-    TIMING_ANOMALY,
-    PROCESS_KILL,
-    SYSTEM_CALL_FAILURE,
-    CUSTOM_FAULT
-};
-
-enum class FaultSeverity {
-    LOW,
-    MEDIUM,
-    HIGH,
-    CRITICAL
+    THREAD_DEADLOCK,
+    RESOURCE_EXHAUSTION,
+    RANDOM_DELAYS,
+    EXCEPTION_INJECTION,
+    DISK_IO_FAILURE,
+    NETWORK_TIMEOUT
 };
 
 struct FaultConfig {
-    FaultType type;
-    FaultSeverity severity;
-    std::string target;
-    std::chrono::milliseconds duration;
-    double probability;
-    std::vector<std::string> parameters;
-    bool autoRecover;
+    FaultType type = FaultType::RANDOM_DELAYS;
+    double probability = 0.1; // 10% chance
+    int durationMs = 100;
+    std::string targetComponent = "all";
+    bool enableRecovery = true;
 };
 
-struct FaultResult {
-    FaultType type;
-    std::string target;
-    FaultSeverity severity;
-    bool success;
+struct FaultInjectionResult {
+    FaultType faultType;
+    std::chrono::steady_clock::time_point injectionTime;
+    bool recoverySuccessful = false;
     std::string errorMessage;
-    std::chrono::system_clock::time_point injectionTime;
-    std::chrono::system_clock::time_point timestamp;
-    std::chrono::milliseconds duration;
+    int affectedThreads = 0;
 };
 
 class FaultInjector {
 public:
     FaultInjector();
     ~FaultInjector();
+
+    void enableFaultInjection(const FaultConfig& config);
+    void disableFaultInjection();
+    void injectFault(FaultType type);
     
-    bool injectFault(const FaultConfig& config);
-    bool injectFault(FaultType type, const std::string& target, 
-                    FaultSeverity severity = FaultSeverity::MEDIUM);
-    
-    void addFault(const FaultConfig& config);
-    void injectAllFaults();
-    void clearFaults();
-    
-    void enableAutoRecovery(bool enable);
-    void setRecoveryDelay(std::chrono::milliseconds delay);
-    
-    std::vector<FaultResult> getFaultHistory() const;
-    bool isFaultActive(const std::string& target) const;
-    
-    void setFaultInjectedCallback(std::function<void(const FaultResult&)> callback);
-    void setFaultRecoveredCallback(std::function<void(const FaultResult&)> callback);
+    std::vector<FaultInjectionResult> getInjectionHistory();
+    void setFaultCallback(std::function<void(const FaultInjectionResult&)> callback);
+
+    // Static methods for specific fault types
+    static void injectMemoryCorruption(void* ptr, size_t size);
+    static void injectRandomDelay(int minMs = 10, int maxMs = 1000);
+    static void injectResourceExhaustion();
 
 private:
-    bool injectMemoryCorruption(const std::string& target, FaultSeverity severity);
-    bool injectCpuOverload(const std::string& target, FaultSeverity severity);
-    bool injectDiskIOError(const std::string& target, FaultSeverity severity);
-    bool injectNetworkPacketLoss(const std::string& target, FaultSeverity severity);
-    bool injectTimingAnomaly(const std::string& target, FaultSeverity severity);
-    bool injectProcessKill(const std::string& target, FaultSeverity severity);
-    bool injectSystemCallFailure(const std::string& target, FaultSeverity severity);
+    std::atomic<bool> injectionEnabled;
+    FaultConfig currentConfig;
+    std::vector<FaultInjectionResult> injectionHistory;
+    std::function<void(const FaultInjectionResult&)> faultCallback;
     
-    void autoRecoverFault(const FaultResult& fault);
-    void faultLoop();
+    std::random_device rd;
+    std::mt19937 gen;
+    std::uniform_real_distribution<> dis;
     
-    std::vector<FaultConfig> pendingFaults_;
-    std::vector<FaultResult> faultHistory_;
-    std::vector<FaultResult> activeFaults_;
+    std::mutex historyMutex;
     
-    bool autoRecoveryEnabled_{true};
-    std::chrono::milliseconds recoveryDelay_{std::chrono::seconds(5)};
-    
-    std::function<void(const FaultResult&)> faultInjectedCallback_;
-    std::function<void(const FaultResult&)> faultRecoveredCallback_;
-    
-    // Thread management
-    std::thread faultThread_;
-    std::atomic<bool> running_{false};
-    
-    // Fault-specific resources
-    std::vector<std::vector<uint8_t>> corruptedMemory_;
-    std::vector<std::thread> cpuOverloadThreads_;
-    std::vector<std::string> faultTestFiles_;
-    std::vector<std::unique_ptr<std::thread>> networkFaults_;
-    std::vector<std::thread> timingAnomalyThreads_;
-    std::vector<std::unique_ptr<std::thread>> systemCallFaults_;
-};
-
-} // namespace hwstress 
+    void recordInjection(const FaultInjectionResult& result);
+    bool shouldInjectFault();
+}; 
