@@ -1,0 +1,6 @@
+psutil
+requests
+pycuda
+numpy
+rich
+matplotlib 
