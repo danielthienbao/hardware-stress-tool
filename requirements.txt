@@ -3,4 +3,5 @@ requests
 pycuda
 numpy
 rich
-matplotlib 
+matplotlib
+pytest 
